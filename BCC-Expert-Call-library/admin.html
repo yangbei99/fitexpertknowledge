@@ -23,10 +23,16 @@
     th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
     th { background: #f1f5f9; }
     .record-row:hover { background: #f8fafc; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .btn-back { background: #2d6ad1; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; }
+    .btn-back:hover { background: #1d5abc; }
   </style>
 </head>
 <body>
-  <h1>🛠️ DocuMind 管理工具</h1>
+  <div class="header">
+    <h1>🛠️ DocuMind 管理工具</h1>
+    <a href="./" class="btn-back">← 返回主页</a>
+  </div>
 
   <!-- Supabase 配置 -->
   <div class="card">
