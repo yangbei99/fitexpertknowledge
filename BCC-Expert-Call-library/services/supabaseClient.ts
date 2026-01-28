@@ -4,8 +4,15 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// 🔍 调试日志：检查环境变量
+console.log('=== Supabase 配置检查 ===');
+console.log('VITE_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : '❌ 未设置');
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : '❌ 未设置');
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your .env.local file.');
+  console.error('❌ Missing Supabase environment variables. Please check your .env.local file.');
+} else {
+  console.log('✅ Supabase 环境变量已加载');
 }
 
 // 创建 Supabase 客户端
@@ -13,6 +20,8 @@ export const supabase: SupabaseClient = createClient(
   supabaseUrl || '',
   supabaseAnonKey || ''
 );
+
+console.log('✅ Supabase 客户端已创建');
 
 // 数据库表类型定义
 export interface ExpertCallRow {

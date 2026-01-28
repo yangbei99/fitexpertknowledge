@@ -85,22 +85,34 @@ const rowToDocRecord = (row: ExpertCallRow): DocRecord => ({
  * 如果包含 Base64 图片，先上传到 Storage
  */
 export const saveRecordToDB = async (record: DocRecord): Promise<void> => {
+  console.log('=== 保存记录到数据库 ===');
+  console.log('📝 记录 ID:', record.id);
+  console.log('📝 标题:', record.title);
+  
   try {
     let thumbnailUrl = record.thumbnail;
     let fullImageUrl = record.fullImage;
 
     // 如果是 Base64 图片，上传到 Storage
     if (record.fullImage && record.fullImage.startsWith('data:')) {
+      console.log('📤 上传原图到 Storage...');
       const uploadedUrl = await uploadImage(record.fullImage, record.fileName, 'full');
       if (uploadedUrl) {
         fullImageUrl = uploadedUrl;
+        console.log('✅ 原图上传成功:', uploadedUrl.substring(0, 80) + '...');
+      } else {
+        console.log('⚠️ 原图上传失败，使用 base64');
       }
     }
 
     if (record.thumbnail && record.thumbnail.startsWith('data:')) {
+      console.log('📤 上传缩略图到 Storage...');
       const uploadedUrl = await uploadImage(record.thumbnail, record.fileName, 'thumbnails');
       if (uploadedUrl) {
         thumbnailUrl = uploadedUrl;
+        console.log('✅ 缩略图上传成功');
+      } else {
+        console.log('⚠️ 缩略图上传失败，使用 base64');
       }
     }
 
@@ -111,17 +123,21 @@ export const saveRecordToDB = async (record: DocRecord): Promise<void> => {
       full_image_url: fullImageUrl,
     };
 
+    console.log('📤 插入数据库...');
     // 插入到数据库（使用 record.id 作为 UUID）
     const { error } = await supabase
       .from('expert_calls')
       .insert({ id: record.id, ...insertData });
 
     if (error) {
-      console.error('Database insert error:', error);
+      console.error('❌ Database insert error:', error);
+      console.error('错误详情:', JSON.stringify(error, null, 2));
       throw error;
     }
+    
+    console.log('✅ 数据库插入成功');
   } catch (error) {
-    console.error('Error saving to DB:', error);
+    console.error('❌ Error saving to DB:', error);
     throw error;
   }
 };
@@ -130,20 +146,28 @@ export const saveRecordToDB = async (record: DocRecord): Promise<void> => {
  * 获取所有记录
  */
 export const getAllRecordsFromDB = async (): Promise<DocRecord[]> => {
+  console.log('=== 从数据库获取记录 ===');
+  
   try {
+    const startTime = Date.now();
     const { data, error } = await supabase
       .from('expert_calls')
       .select('*')
       .order('created_at', { ascending: false });
+    const duration = Date.now() - startTime;
+
+    console.log('⏱️ 数据库查询时间:', duration, 'ms');
 
     if (error) {
-      console.error('Database query error:', error);
+      console.error('❌ Database query error:', error);
+      console.error('错误详情:', JSON.stringify(error, null, 2));
       return [];
     }
 
+    console.log('✅ 查询成功，记录数:', data?.length || 0);
     return (data as ExpertCallRow[]).map(rowToDocRecord);
   } catch (error) {
-    console.error('Error getting from DB:', error);
+    console.error('❌ Error getting from DB:', error);
     return [];
   }
 };

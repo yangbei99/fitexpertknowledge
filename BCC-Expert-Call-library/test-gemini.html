@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gemini API 连通性测试</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+    .result { padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #e2e3e5; color: #383d41; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    input { padding: 10px; width: 100%; font-size: 14px; margin: 10px 0; }
+    pre { background: #f4f4f4; padding: 10px; overflow-x: auto; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Gemini API 连通性测试</h1>
+  
+  <h3>1. 输入 Gemini API Key</h3>
+  <input type="text" id="apiKey" placeholder="AIzaSy..." value="">
+  
+  <h3>2. 运行测试</h3>
+  <button onclick="testGeminiDirect()">测试 Gemini API 直连</button>
+  <button onclick="testEdgeFunction()">测试 Edge Function</button>
+  
+  <div id="results"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://rybiwfmmnauzypkrtafs.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Yml3Zm1tbmF1enlwa3J0YWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NzU3MTUsImV4cCI6MjA4NTE1MTcxNX0.qb7FUvCjzojTQ5RNY-a3lCarhkV3Lf2c90hQ5Mhd79Y';
+
+    function log(msg, type = 'info') {
+      const div = document.createElement('div');
+      div.className = 'result ' + type;
+      div.innerHTML = msg;
+      document.getElementById('results').appendChild(div);
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    // 测试 1: 直接调用 Gemini API
+    async function testGeminiDirect() {
+      clearResults();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      
+      if (!apiKey) {
+        log('❌ 请输入 API Key', 'error');
+        return;
+      }
+
+      log('🔄 正在直接测试 Gemini API...', 'info');
+      
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Say hello in Chinese' }] }]
+            })
+          }
+        );
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+          log(`✅ Gemini API 直连成功！<br>响应: ${text}`, 'success');
+          log(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'info');
+        } else {
+          log(`❌ Gemini API 错误 (${response.status})<br><pre>${JSON.stringify(data, null, 2)}</pre>`, 'error');
+        }
+      } catch (err) {
+        log(`❌ 网络错误: ${err.message}`, 'error');
+      }
+    }
+
+    // 测试 2: 通过 Edge Function 调用
+    async function testEdgeFunction() {
+      clearResults();
+      log('🔄 正在测试 Edge Function...', 'info');
+
+      try {
+        const response = await fetch(
+          `${SUPABASE_URL}/functions/v1/gemini-proxy`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'apikey': SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({
+              action: 'query',
+              prompt: 'Say hello',
+              context: '<document>Test</document>'
+            })
+          }
+        );
+
+        const text = await response.text();
+        
+        if (response.ok) {
+          log(`✅ Edge Function 调用成功！<br><pre>${text}</pre>`, 'success');
+        } else {
+          log(`❌ Edge Function 错误 (${response.status})<br><pre>${text}</pre>`, 'error');
+          
+          // 尝试获取更多错误信息
+          log(`<br>💡 提示：检查 Supabase Dashboard > Edge Functions > gemini-proxy > Logs 查看详细错误`, 'info');
+        }
+      } catch (err) {
+        log(`❌ 网络错误: ${err.message}`, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

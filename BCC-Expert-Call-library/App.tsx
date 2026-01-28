@@ -60,7 +60,7 @@ const App: React.FC = () => {
   const handleFilesSelected = async (files: File[]) => {
     const newQueueItems: UploadQueueItem[] = await Promise.all(
       files.map(async (file) => ({
-        id: Math.random().toString(36).substring(2, 9),
+        id: crypto.randomUUID(), // 生成标准 UUID 格式
         file,
         previewUrl: URL.createObjectURL(file), 
         status: ProcessingStatus.PENDING,

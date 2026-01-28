@@ -30,8 +30,14 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
  * API Key 安全存储在服务端，前端不会暴露。
  */
 export const extractTextFromImage = async (base64Image: string, mimeType: string): Promise<ExtractedContent> => {
+  console.log('=== 开始图片提取 ===');
+  console.log('📤 调用 Edge Function: gemini-proxy (action: extract)');
+  console.log('📎 图片类型:', mimeType);
+  console.log('📎 图片大小:', Math.round(base64Image.length / 1024), 'KB (base64)');
+  
   try {
     // 调用 Supabase Edge Function
+    const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('gemini-proxy', {
       body: {
         action: 'extract',
@@ -39,11 +45,18 @@ export const extractTextFromImage = async (base64Image: string, mimeType: string
         mimeType: mimeType
       }
     });
+    const duration = Date.now() - startTime;
+
+    console.log('⏱️ Edge Function 响应时间:', duration, 'ms');
 
     if (error) {
-      console.error('Edge Function Error:', error);
+      console.error('❌ Edge Function 错误:', error);
+      console.error('错误详情:', JSON.stringify(error, null, 2));
       throw error;
     }
+
+    console.log('✅ Edge Function 返回成功');
+    console.log('📥 返回数据:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
 
     // Edge Function 返回的数据已经是解析好的对象
     return {
@@ -54,7 +67,9 @@ export const extractTextFromImage = async (base64Image: string, mimeType: string
       content: data.content || "无法解析文档结构，请重试。"
     };
   } catch (error) {
-    console.error("Gemini Extraction Error:", error);
+    console.error("❌ Gemini Extraction Error:", error);
+    console.error("错误类型:", typeof error);
+    console.error("错误信息:", error instanceof Error ? error.message : String(error));
     // Return a fallback object so the UI doesn't crash completely
     return {
       title: "标题提取失败",
@@ -71,6 +86,11 @@ export const extractTextFromImage = async (base64Image: string, mimeType: string
  * 通过 Supabase Edge Function 调用 Gemini，确保 API Key 安全。
  */
 export const queryDocuments = async (query: string, records: DocRecord[], history: ChatMessage[] = []): Promise<string> => {
+  console.log('=== 开始知识库问答 ===');
+  console.log('❓ 用户问题:', query);
+  console.log('📚 文档数量:', records.length);
+  console.log('💬 历史记录数:', history.length);
+
   // 1. Prepare Context (Combine all documents)
   const context = records.map(record => `
 <document id="${record.id}">
@@ -88,8 +108,12 @@ export const queryDocuments = async (query: string, records: DocRecord[], histor
     `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
   ).join('\n\n');
 
+  console.log('📤 调用 Edge Function: gemini-proxy (action: query)');
+  console.log('📎 Context 大小:', Math.round(context.length / 1024), 'KB');
+
   try {
     // 调用 Supabase Edge Function
+    const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('gemini-proxy', {
       body: {
         action: 'query',
@@ -98,15 +122,24 @@ export const queryDocuments = async (query: string, records: DocRecord[], histor
         history: historyText
       }
     });
+    const duration = Date.now() - startTime;
+
+    console.log('⏱️ Edge Function 响应时间:', duration, 'ms');
 
     if (error) {
-      console.error('Edge Function Error:', error);
+      console.error('❌ Edge Function 错误:', error);
+      console.error('错误详情:', JSON.stringify(error, null, 2));
       throw error;
     }
 
+    console.log('✅ 问答成功');
+    console.log('📥 回答预览:', data.answer?.substring(0, 200) + '...');
+
     return data.answer || "Sorry, I could not generate a response.";
   } catch (error) {
-    console.error("Chat Error:", error);
+    console.error("❌ Chat Error:", error);
+    console.error("错误类型:", typeof error);
+    console.error("错误信息:", error instanceof Error ? error.message : String(error));
     return "Sorry, I encountered an error while processing your request.";
   }
 };
