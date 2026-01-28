@@ -26,6 +26,10 @@ export default defineConfig(({ mode }) => {
         sourcemap: false,
         // 优化打包
         rollupOptions: {
+          input: {
+            main: path.resolve(__dirname, 'index.html'),
+            admin: path.resolve(__dirname, 'admin.html'),
+          },
           output: {
             manualChunks: {
               'vendor': ['react', 'react-dom'],
