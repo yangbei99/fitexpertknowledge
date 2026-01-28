@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocuMind 管理工具</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; background: #f8fafc; }
+    h1 { color: #2d6ad1; }
+    .card { background: white; padding: 20px; border-radius: 12px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .result { padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 14px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #e2e3e5; color: #383d41; }
+    .warning { background: #fff3cd; color: #856404; }
+    button { padding: 10px 20px; font-size: 14px; cursor: pointer; margin: 5px; border: none; border-radius: 8px; }
+    .btn-primary { background: #2d6ad1; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    input { padding: 10px; width: 100%; font-size: 14px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; overflow-x: auto; font-size: 12px; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f1f5f9; }
+    .record-row:hover { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <h1>🛠️ DocuMind 管理工具</h1>
+
+  <!-- Supabase 配置 -->
+  <div class="card">
+    <h3>📋 Supabase 配置</h3>
+    <div id="config-info"></div>
+  </div>
+
+  <!-- 数据库记录管理 -->
+  <div class="card">
+    <h3>📚 数据库记录管理</h3>
+    <button class="btn-primary" onclick="loadRecords()">刷新列表</button>
+    <button class="btn-danger" onclick="deleteAllRecords()">⚠️ 删除所有记录</button>
+    <div id="records-list"></div>
+  </div>
+
+  <!-- Edge Function 测试 -->
+  <div class="card">
+    <h3>🧪 Edge Function 测试</h3>
+    <input type="text" id="apiKey" placeholder="输入 Gemini API Key (AIzaSy...)">
+    <button class="btn-primary" onclick="testGeminiDirect()">测试 Gemini 直连</button>
+    <button class="btn-secondary" onclick="testEdgeFunction()">测试 Edge Function</button>
+    <div id="test-results"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const SUPABASE_URL = 'https://rybiwfmmnauzypkrtafs.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Yml3Zm1tbmF1enlwa3J0YWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NzU3MTUsImV4cCI6MjA4NTE1MTcxNX0.qb7FUvCjzojTQ5RNY-a3lCarhkV3Lf2c90hQ5Mhd79Y';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 显示配置信息
+    document.getElementById('config-info').innerHTML = `
+      <div class="result info">
+        <strong>URL:</strong> ${SUPABASE_URL}<br>
+        <strong>Anon Key:</strong> ${SUPABASE_ANON_KEY.substring(0, 30)}...
+      </div>
+    `;
+
+    // 加载记录
+    window.loadRecords = async function() {
+      const container = document.getElementById('records-list');
+      container.innerHTML = '<div class="result info">加载中...</div>';
+
+      try {
+        const { data, error } = await supabase
+          .from('expert_calls')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div class="result warning">数据库中没有记录</div>';
+          return;
+        }
+
+        let html = `<div class="result success">共 ${data.length} 条记录</div>`;
+        html += `<table>
+          <tr><th>标题</th><th>ID</th><th>创建时间</th><th>操作</th></tr>`;
+        
+        for (const record of data) {
+          html += `<tr class="record-row">
+            <td>${record.title || '无标题'}</td>
+            <td><code>${record.id.substring(0, 8)}...</code></td>
+            <td>${new Date(record.created_at).toLocaleString()}</td>
+            <td><button class="btn-danger" onclick="deleteRecord('${record.id}')">删除</button></td>
+          </tr>`;
+        }
+        html += '</table>';
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = `<div class="result error">错误: ${err.message}</div>`;
+      }
+    };
+
+    // 删除单条记录
+    window.deleteRecord = async function(id) {
+      if (!confirm('确定要删除这条记录吗？')) return;
+
+      try {
+        // 先获取记录查看是否有图片需要删除
+        const { data: record } = await supabase
+          .from('expert_calls')
+          .select('thumbnail_url, full_image_url')
+          .eq('id', id)
+          .single();
+
+        // 删除 Storage 中的图片
+        if (record) {
+          const filesToDelete = [];
+          if (record.thumbnail_url && record.thumbnail_url.includes('expert-images')) {
+            const match = record.thumbnail_url.match(/expert-images\/(.+)$/);
+            if (match) filesToDelete.push(match[1]);
+          }
+          if (record.full_image_url && record.full_image_url.includes('expert-images')) {
+            const match = record.full_image_url.match(/expert-images\/(.+)$/);
+            if (match) filesToDelete.push(match[1]);
+          }
+          if (filesToDelete.length > 0) {
+            await supabase.storage.from('expert-images').remove(filesToDelete);
+          }
+        }
+
+        // 删除数据库记录
+        const { error } = await supabase
+          .from('expert_calls')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        
+        alert('删除成功！');
+        loadRecords();
+      } catch (err) {
+        alert('删除失败: ' + err.message);
+      }
+    };
+
+    // 删除所有记录
+    window.deleteAllRecords = async function() {
+      if (!confirm('⚠️ 确定要删除所有记录吗？此操作不可恢复！')) return;
+      if (!confirm('再次确认：真的要删除所有数据吗？')) return;
+
+      try {
+        // 获取所有记录
+        const { data: records } = await supabase
+          .from('expert_calls')
+          .select('id, thumbnail_url, full_image_url');
+
+        // 收集所有图片路径
+        const filesToDelete = [];
+        for (const record of records || []) {
+          if (record.thumbnail_url && record.thumbnail_url.includes('expert-images')) {
+            const match = record.thumbnail_url.match(/expert-images\/(.+)$/);
+            if (match) filesToDelete.push(match[1]);
+          }
+          if (record.full_image_url && record.full_image_url.includes('expert-images')) {
+            const match = record.full_image_url.match(/expert-images\/(.+)$/);
+            if (match) filesToDelete.push(match[1]);
+          }
+        }
+
+        // 删除所有图片
+        if (filesToDelete.length > 0) {
+          await supabase.storage.from('expert-images').remove(filesToDelete);
+        }
+
+        // 删除所有数据库记录
+        const { error } = await supabase
+          .from('expert_calls')
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000'); // 删除所有
+
+        if (error) throw error;
+
+        alert('所有记录已删除！');
+        loadRecords();
+      } catch (err) {
+        alert('删除失败: ' + err.message);
+      }
+    };
+
+    // 测试 Gemini 直连
+    window.testGeminiDirect = async function() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const container = document.getElementById('test-results');
+      
+      if (!apiKey) {
+        container.innerHTML = '<div class="result error">请输入 API Key</div>';
+        return;
+      }
+
+      container.innerHTML = '<div class="result info">测试中...</div>';
+
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Say hello in Chinese, keep it short.' }] }]
+            })
+          }
+        );
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+          container.innerHTML = `<div class="result success">✅ Gemini 直连成功！<br>响应: ${text}</div>`;
+        } else {
+          container.innerHTML = `<div class="result error">❌ 错误 (${response.status})<pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="result error">❌ 网络错误: ${err.message}</div>`;
+      }
+    };
+
+    // 测试 Edge Function
+    window.testEdgeFunction = async function() {
+      const container = document.getElementById('test-results');
+      container.innerHTML = '<div class="result info">测试 Edge Function...</div>';
+
+      try {
+        const { data, error } = await supabase.functions.invoke('gemini-proxy', {
+          body: {
+            action: 'query',
+            prompt: 'Say hello',
+            context: '<document>Test document</document>'
+          }
+        });
+
+        if (error) {
+          container.innerHTML = `<div class="result error">❌ Edge Function 错误<pre>${JSON.stringify(error, null, 2)}</pre></div>`;
+        } else {
+          container.innerHTML = `<div class="result success">✅ Edge Function 成功！<pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="result error">❌ 错误: ${err.message}</div>`;
+      }
+    };
+
+    // 初始加载
+    loadRecords();
+  </script>
+</body>
+</html>

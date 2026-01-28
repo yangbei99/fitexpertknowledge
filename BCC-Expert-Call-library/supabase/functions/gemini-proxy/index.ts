@@ -125,7 +125,7 @@ async function handleExtract(body: ExtractRequest): Promise<Response> {
   };
 
   const response = await fetch(
-    `${GEMINI_BASE_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `${GEMINI_BASE_URL}/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -196,7 +196,7 @@ ${history ? `CHAT HISTORY:\n${history}` : ''}
   };
 
   const response = await fetch(
-    `${GEMINI_BASE_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `${GEMINI_BASE_URL}/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
