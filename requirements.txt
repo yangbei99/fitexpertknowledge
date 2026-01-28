@@ -1,0 +1,24 @@
+# 基础依赖包
+# Web框架
+flask==3.0.0
+requests==2.31.0
+
+# 数据处理
+numpy==1.26.3
+pandas==2.1.4
+
+# 工具库
+python-dotenv==1.0.0
+pydantic==2.5.3
+
+# 测试
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# 代码质量
+black==23.12.1
+flake8==7.0.0
+pylint==3.0.3
+
+# 类型检查
+mypy==1.8.0
