@@ -30,10 +30,6 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Logo click count for hidden admin access
-  const [logoClickCount, setLogoClickCount] = useState(0);
-  const lastClickTimeRef = useRef<number>(0);
-
   // Ref to track the latest upload queue state for async cancellation checks
   const uploadQueueRef = useRef(uploadQueue);
 
@@ -41,6 +37,24 @@ const App: React.FC = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Secret admin access: 5 clicks on logo
+  const logoClickRef = useRef({ count: 0, lastClick: 0 });
+  
+  const handleLogoClick = () => {
+    const now = Date.now();
+    // Reset if more than 2 seconds since last click
+    if (now - logoClickRef.current.lastClick > 2000) {
+      logoClickRef.current.count = 0;
+    }
+    logoClickRef.current.count++;
+    logoClickRef.current.lastClick = now;
+    
+    if (logoClickRef.current.count >= 5) {
+      logoClickRef.current.count = 0;
+      window.location.href = window.location.pathname.replace('index.html', '').replace(/\/$/, '') + '/admin.html';
+    }
+  };
 
   // Load from DB on mount
   useEffect(() => {
@@ -230,22 +244,6 @@ const App: React.FC = () => {
     setViewMode('details');
   };
 
-  const handleLogoClick = () => {
-    const now = Date.now();
-    if (now - lastClickTimeRef.current > 2000) {
-      setLogoClickCount(1);
-    } else {
-      const nextCount = logoClickCount + 1;
-      if (nextCount >= 5) {
-        window.location.href = './admin.html';
-        setLogoClickCount(0);
-      } else {
-        setLogoClickCount(nextCount);
-      }
-    }
-    lastClickTimeRef.current = now;
-  };
-
   // -- BATCH SELECTION & DOWNLOAD LOGIC --
 
   const toggleSelectionMode = () => {
@@ -365,11 +363,11 @@ const App: React.FC = () => {
   const renderSidebar = () => (
     <div className="w-64 bg-zinc-50 border-r border-[#b4c6e6]/30 flex flex-col h-full flex-shrink-0">
       <div className="p-8">
-        <h1 
-          className="text-xl font-bold text-[#0048d6] flex items-center gap-2 tracking-tight cursor-pointer select-none"
-          onClick={handleLogoClick}
-        >
-          <div className="w-8 h-8 bg-[#2d6ad1] rounded-lg flex items-center justify-center shadow-lg shadow-[#2d6ad1]/20">
+        <h1 className="text-xl font-bold text-[#0048d6] flex items-center gap-2 tracking-tight">
+          <div 
+            className="w-8 h-8 bg-[#2d6ad1] rounded-lg flex items-center justify-center shadow-lg shadow-[#2d6ad1]/20 cursor-pointer select-none"
+            onClick={handleLogoClick}
+          >
             <span className="text-lg text-white font-serif italic">D</span>
           </div>
           DocuMind
@@ -642,6 +640,7 @@ const App: React.FC = () => {
                                     {/* Fade effect for truncated text */}
                                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                                 </div>
+
                             </div>
                         );
                     })}
