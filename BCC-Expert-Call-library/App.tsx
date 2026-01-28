@@ -30,6 +30,10 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Logo click count for hidden admin access
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const lastClickTimeRef = useRef<number>(0);
+
   // Ref to track the latest upload queue state for async cancellation checks
   const uploadQueueRef = useRef(uploadQueue);
 
@@ -226,6 +230,22 @@ const App: React.FC = () => {
     setViewMode('details');
   };
 
+  const handleLogoClick = () => {
+    const now = Date.now();
+    if (now - lastClickTimeRef.current > 2000) {
+      setLogoClickCount(1);
+    } else {
+      const nextCount = logoClickCount + 1;
+      if (nextCount >= 5) {
+        window.location.href = './admin.html';
+        setLogoClickCount(0);
+      } else {
+        setLogoClickCount(nextCount);
+      }
+    }
+    lastClickTimeRef.current = now;
+  };
+
   // -- BATCH SELECTION & DOWNLOAD LOGIC --
 
   const toggleSelectionMode = () => {
@@ -345,7 +365,10 @@ const App: React.FC = () => {
   const renderSidebar = () => (
     <div className="w-64 bg-zinc-50 border-r border-[#b4c6e6]/30 flex flex-col h-full flex-shrink-0">
       <div className="p-8">
-        <h1 className="text-xl font-bold text-[#0048d6] flex items-center gap-2 tracking-tight">
+        <h1 
+          className="text-xl font-bold text-[#0048d6] flex items-center gap-2 tracking-tight cursor-pointer select-none"
+          onClick={handleLogoClick}
+        >
           <div className="w-8 h-8 bg-[#2d6ad1] rounded-lg flex items-center justify-center shadow-lg shadow-[#2d6ad1]/20">
             <span className="text-lg text-white font-serif italic">D</span>
           </div>
@@ -619,19 +642,6 @@ const App: React.FC = () => {
                                     {/* Fade effect for truncated text */}
                                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                                 </div>
-
-                                {/* Hover Action (Delete) */}
-                                {!isSelectionMode && (
-                                    <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={(e) => deleteRecord(record.id, e)}
-                                            className="text-zinc-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"
-                                            title="删除文档"
-                                        >
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
