@@ -1,0 +1,5 @@
+{
+  "name": "BCC专家访谈文库",
+  "description": "专业的专家访谈纪要批量OCR工具。上传图片，利用Gemini精准提取文字，自动归档，支持知识库搜索。",
+  "requestFramePermissions": []
+}
